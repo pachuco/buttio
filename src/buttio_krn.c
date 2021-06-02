@@ -16,6 +16,12 @@
 #include <ntddk.h>
 #include "buttio.h"
 
+#define MAX_RECORDS 32
+typedef struct {
+    HANDLE hand;
+    UCHAR* iopm;
+} ProcRecord;
+
 extern void NTAPI Ke386SetIoAccessMap(int, UCHAR*);
 extern void NTAPI Ke386QueryIoAccessMap(int, UCHAR*);
 extern void NTAPI Ke386IoSetAccessProcess(PEPROCESS, int);
@@ -25,8 +31,54 @@ extern void NTAPI Ke386IoSetAccessProcess(PEPROCESS, int);
 const WCHAR devicePath[]    = L"\\Device\\" DRIVER_NAME;
 const WCHAR dosDevicePath[] = L"\\DosDevices\\" DRIVER_NAME;
 UNICODE_STRING g_uniDevicePath, g_uniDosDevicePath;
+static ProcRecord records[MAX_RECORDS] = {0};
 
-static UCHAR* g_pIopmMap = NULL;
+
+
+
+
+static ProcRecord* recordFind(HANDLE hand) {
+    ProcRecord* ret = NULL;
+    
+    for (int i=0; i < MAX_RECORDS; i++) {
+        ProcRecord* record = &records[i];
+        if (record->hand == hand) {
+            ret = record;
+            break;
+        }
+    }
+    return ret;
+}
+
+static void recordDelete(ProcRecord* record) {
+    if (!record) {
+        for (int i=0; i < MAX_RECORDS; i++) recordDelete(&records[i]);
+    } else {
+        if (record->hand) {
+            MmFreeNonCachedMemory(record->iopm, IOPM_SIZE*sizeof(UCHAR));
+            record->hand = NULL;
+            record->iopm = NULL;
+        }
+    }
+}
+
+static ProcRecord* recordAddGet(HANDLE hand) {
+    ProcRecord* ret = NULL;
+    
+    ret = recordFind(hand);
+    if (!ret) {
+        ProcRecord* record = recordFind(NULL);
+        
+        if (record) {
+            record->iopm = MmAllocateNonCachedMemory(IOPM_SIZE*sizeof(UCHAR));
+            if (record->iopm) {
+                record->hand = hand;
+                ret = record;
+            }
+        }
+    }
+    return ret;
+}
 
 /////////////////////////////////////////////////////////////////////////////
 static NTSTATUS NTAPI device_dispatch(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp) {
@@ -73,22 +125,26 @@ static NTSTATUS NTAPI device_control(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp
             if (inSize < IOPM_SIZE) {
                 status = STATUS_BUFFER_TOO_SMALL;
             } else {
-                __builtin_memcpy(g_pIopmMap, (UCHAR*)data, IOPM_SIZE);
+                ProcRecord* record = recordAddGet(PsGetCurrentProcessId());
                 
-                //I believe Ke386SetIoAccessMap() acts on current process only.
-                //So using PsLookupProcessByProcessId() won't do much good.
-                Ke386SetIoAccessMap(1, g_pIopmMap);
-                Ke386IoSetAccessProcess(PsGetCurrentProcess(), 1);
-                
-                status = STATUS_SUCCESS;
+                if (record) {
+                    __builtin_memcpy(record->iopm, (UCHAR*)data, IOPM_SIZE);
+                    
+                    //I believe Ke386SetIoAccessMap() acts on current process only.
+                    //So using PsLookupProcessByProcessId() won't do much good.
+                    Ke386SetIoAccessMap(1, record->iopm);
+                    Ke386IoSetAccessProcess(PsGetCurrentProcess(), 1);
+                    
+                    status = STATUS_SUCCESS;
+                } else {
+                    status = STATUS_INSUFFICIENT_RESOURCES;
+                }
             }
             break;
             
         case IOCTLNR_IOPM_UNREGISTER:
-            iopm_fillAll(g_pIopmMap, FALSE);
-            
-            Ke386SetIoAccessMap(1, g_pIopmMap);
             Ke386IoSetAccessProcess(PsGetCurrentProcess(), 0);
+            recordDelete(PsGetCurrentProcessId());
             
             status = STATUS_SUCCESS;
             break;
@@ -157,7 +213,7 @@ static NTSTATUS NTAPI device_control(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp
 }
 
 static VOID NTAPI driver_unload(IN PDRIVER_OBJECT DriverObject) {
-    if (g_pIopmMap) MmFreeNonCachedMemory(g_pIopmMap, IOPM_SIZE*sizeof(UCHAR));
+    recordDelete(NULL);
     
     IoDeleteSymbolicLink(&g_uniDosDevicePath);
     IoDeleteDevice(DriverObject->DeviceObject);
@@ -172,11 +228,6 @@ NTSTATUS NTAPI DriverEntry(IN PDRIVER_OBJECT DriverObject, IN PUNICODE_STRING Re
     RtlInitUnicodeString(&g_uniDevicePath, devicePath);
     RtlInitUnicodeString(&g_uniDosDevicePath, dosDevicePath);
     
-    g_pIopmMap = MmAllocateNonCachedMemory(IOPM_SIZE*sizeof(UCHAR));
-    if (!g_pIopmMap) return STATUS_INSUFFICIENT_RESOURCES;
-
-    iopm_fillAll(g_pIopmMap, FALSE);
-
     status = IoCreateDevice(DriverObject, 0, &g_uniDevicePath, FILE_DEVICE_UNKNOWN,
                             0, FALSE, &device_object);
     if (!NT_SUCCESS(status)) return status;

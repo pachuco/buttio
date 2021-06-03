@@ -213,14 +213,15 @@ BOOL buttio_init(IOHandler* pIoHand, HANDLE modHand, UCHAR preferedIOMethod) {
                 preferedIOMethod = BUTTIO_MET_IOPM;
             }
         }
+        
+        iopm_fillAll(pIoHand->iopm, FALSE);
+        pIoHand->ioMethod = preferedIOMethod;
+        
+        return TRUE;
     } else {
         buttio_shutdown(pIoHand);
         return FALSE;
     }
-    
-    iopm_fillAll(pIoHand->iopm, FALSE);
-    
-    return TRUE;
 }
 
 BOOL buttio_flushIOPMChanges(IOHandler* pIoHand) {

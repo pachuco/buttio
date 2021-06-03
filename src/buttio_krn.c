@@ -28,9 +28,11 @@ extern void NTAPI Ke386IoSetAccessProcess(PEPROCESS, int);
 
 #define PP(_X) ((void*)(LONG_PTR)_X)
 
-const WCHAR devicePath[]    = L"\\Device\\" DRIVER_NAME;
-const WCHAR dosDevicePath[] = L"\\DosDevices\\" DRIVER_NAME;
-UNICODE_STRING g_uniDevicePath, g_uniDosDevicePath;
+
+
+
+UNICODE_STRING pathDevice    = RTL_CONSTANT_STRING(L"\\Device\\" DRIVER_NAME);
+UNICODE_STRING pathDosDevice = RTL_CONSTANT_STRING(L"\\DosDevices\\" DRIVER_NAME);
 static ProcRecord records[MAX_RECORDS] = {0};
 
 
@@ -215,7 +217,7 @@ static NTSTATUS NTAPI device_control(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp
 static VOID NTAPI driver_unload(IN PDRIVER_OBJECT DriverObject) {
     recordDelete(NULL);
     
-    IoDeleteSymbolicLink(&g_uniDosDevicePath);
+    IoDeleteSymbolicLink(&pathDosDevice);
     IoDeleteDevice(DriverObject->DeviceObject);
 }
 
@@ -225,14 +227,11 @@ NTSTATUS NTAPI DriverEntry(IN PDRIVER_OBJECT DriverObject, IN PUNICODE_STRING Re
     
     (void)RegistryPath;
     
-    RtlInitUnicodeString(&g_uniDevicePath, devicePath);
-    RtlInitUnicodeString(&g_uniDosDevicePath, dosDevicePath);
-    
-    status = IoCreateDevice(DriverObject, 0, &g_uniDevicePath, FILE_DEVICE_UNKNOWN,
+    status = IoCreateDevice(DriverObject, 0, &pathDevice, FILE_DEVICE_UNKNOWN,
                             0, FALSE, &device_object);
     if (!NT_SUCCESS(status)) return status;
 
-    status = IoCreateSymbolicLink(&g_uniDosDevicePath, &g_uniDevicePath);
+    status = IoCreateSymbolicLink(&pathDosDevice, &pathDevice);
     if (!NT_SUCCESS(status)) return status;
 
     DriverObject->MajorFunction[IRP_MJ_CREATE] = device_dispatch;

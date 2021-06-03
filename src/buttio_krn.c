@@ -16,6 +16,10 @@
 #include <ntddk.h>
 #include "buttio.h"
 
+#if defined(__i386__) || defined(__X86__) || defined(_X86_) || defined(__I86__)
+    #define ARCH_IS_X86
+#endif
+
 #define MAX_RECORDS 32
 typedef struct {
     HANDLE hand;
@@ -27,8 +31,6 @@ extern void NTAPI Ke386QueryIoAccessMap(int, UCHAR*);
 extern void NTAPI Ke386IoSetAccessProcess(PEPROCESS, int);
 
 #define PP(_X) ((void*)(LONG_PTR)_X)
-
-
 
 
 UNICODE_STRING pathDevice    = RTL_CONSTANT_STRING(L"\\Device\\" DRIVER_NAME);
@@ -124,31 +126,39 @@ static NTSTATUS NTAPI device_control(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp
             break;
             
         case IOCTLNR_IOPM_REGISTER:
-            if (inSize < IOPM_SIZE) {
-                status = STATUS_BUFFER_TOO_SMALL;
-            } else {
-                ProcRecord* record = recordAddGet(PsGetCurrentProcessId());
-                
-                if (record) {
-                    __builtin_memcpy(record->iopm, (UCHAR*)data, IOPM_SIZE);
-                    
-                    //I believe Ke386SetIoAccessMap() acts on current process only.
-                    //So using PsLookupProcessByProcessId() won't do much good.
-                    Ke386SetIoAccessMap(1, record->iopm);
-                    Ke386IoSetAccessProcess(PsGetCurrentProcess(), 1);
-                    
-                    status = STATUS_SUCCESS;
+            #ifdef ARCH_IS_X86
+                if (inSize < IOPM_SIZE) {
+                    status = STATUS_BUFFER_TOO_SMALL;
                 } else {
-                    status = STATUS_INSUFFICIENT_RESOURCES;
+                    ProcRecord* record = recordAddGet(PsGetCurrentProcessId());
+                    
+                    if (record) {
+                        __builtin_memcpy(record->iopm, (UCHAR*)data, IOPM_SIZE);
+                        
+                        //I believe Ke386SetIoAccessMap() acts on current process only.
+                        //So using PsLookupProcessByProcessId() won't do much good.
+                        Ke386SetIoAccessMap(1, record->iopm);
+                        Ke386IoSetAccessProcess(PsGetCurrentProcess(), 1);
+                        
+                        status = STATUS_SUCCESS;
+                    } else {
+                        status = STATUS_INSUFFICIENT_RESOURCES;
+                    }
                 }
-            }
+            #else
+                status = STATUS_NOT_SUPPORTED;
+            #endif
             break;
             
         case IOCTLNR_IOPM_UNREGISTER:
-            Ke386IoSetAccessProcess(PsGetCurrentProcess(), 0);
-            recordDelete(PsGetCurrentProcessId());
-            
-            status = STATUS_SUCCESS;
+            #ifdef ARCH_IS_X86
+                Ke386IoSetAccessProcess(PsGetCurrentProcess(), 0);
+                recordDelete(PsGetCurrentProcessId());
+                
+                status = STATUS_SUCCESS;
+            #else
+                status = STATUS_NOT_SUPPORTED;
+            #endif
             break;
         
         case IOCTL_READ_32:

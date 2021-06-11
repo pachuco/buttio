@@ -14,6 +14,7 @@
  */
 
 #include <ntddk.h>
+#include <ntifs.h>
 #include "buttio.h"
 
 #if defined(__i386__) || defined(__X86__) || defined(_X86_) || defined(__I86__)
@@ -21,6 +22,7 @@
 #endif
 
 #define MAX_RECORDS 32
+#define PP(_X) ((void*)(LONG_PTR)_X)
 typedef struct {
     HANDLE hand;
     UCHAR* iopm;
@@ -30,13 +32,12 @@ extern void NTAPI Ke386SetIoAccessMap(int, UCHAR*);
 extern void NTAPI Ke386QueryIoAccessMap(int, UCHAR*);
 extern void NTAPI Ke386IoSetAccessProcess(PEPROCESS, int);
 
-#define PP(_X) ((void*)(LONG_PTR)_X)
+
 
 
 UNICODE_STRING pathDevice    = RTL_CONSTANT_STRING(L"\\Device\\" DRIVER_NAME);
 UNICODE_STRING pathDosDevice = RTL_CONSTANT_STRING(L"\\DosDevices\\" DRIVER_NAME);
 static ProcRecord records[MAX_RECORDS] = {0};
-
 
 
 
@@ -55,29 +56,49 @@ static ProcRecord* recordFind(HANDLE hand) {
 }
 
 static void recordDelete(ProcRecord* record) {
-    if (!record) {
-        for (int i=0; i < MAX_RECORDS; i++) recordDelete(&records[i]);
-    } else {
+    if (record) {
         if (record->hand) {
+            PEPROCESS eproc;
+            
+            if (NT_SUCCESS(PsLookupProcessByProcessId(record->hand, &eproc))) {
+                Ke386IoSetAccessProcess(eproc, 0);
+                ObDereferenceObject(eproc);
+            }
             MmFreeNonCachedMemory(record->iopm, IOPM_SIZE*sizeof(UCHAR));
-            record->hand = NULL;
-            record->iopm = NULL;
         }
+        record->hand = NULL;
+        record->iopm = NULL;
     }
 }
 
-static ProcRecord* recordAddGet(HANDLE hand) {
+static ProcRecord* recordAdd(HANDLE hand) {
     ProcRecord* ret = NULL;
+    ProcRecord* record = recordFind(NULL);
     
-    ret = recordFind(hand);
-    if (!ret) {
-        ProcRecord* record = recordFind(NULL);
+    if (record) {
+        record->iopm = MmAllocateNonCachedMemory(IOPM_SIZE*sizeof(UCHAR));
+        if (record->iopm) {
+            record->hand = hand;
+            ret = record;
+        }
+    }
+    return ret;
+}
+
+static BOOLEAN recordsCleanFindActive(void) {
+    BOOLEAN ret = FALSE;
+    
+    for (int i=0; i < MAX_RECORDS; i++) {
+        ProcRecord* record = &records[i];
         
-        if (record) {
-            record->iopm = MmAllocateNonCachedMemory(IOPM_SIZE*sizeof(UCHAR));
-            if (record->iopm) {
-                record->hand = hand;
-                ret = record;
+        if (record->hand) {
+            PEPROCESS eproc;
+            
+            if (!NT_SUCCESS(PsLookupProcessByProcessId(record->hand, &eproc))) {
+                recordDelete(record);
+            } else {
+                ObDereferenceObject(eproc);
+                ret = TRUE;
             }
         }
     }
@@ -130,7 +151,12 @@ static NTSTATUS NTAPI device_control(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp
                 if (inSize < IOPM_SIZE) {
                     status = STATUS_BUFFER_TOO_SMALL;
                 } else {
-                    ProcRecord* record = recordAddGet(PsGetCurrentProcessId());
+                    HANDLE hand = PsGetCurrentProcessId();
+                    NT_ASSERT(hand!=0);
+                    ProcRecord* record;
+                    
+                    record = recordFind(hand);
+                    if (!record) record = recordAdd(hand);
                     
                     if (record) {
                         __builtin_memcpy(record->iopm, (UCHAR*)data, IOPM_SIZE);
@@ -144,22 +170,25 @@ static NTSTATUS NTAPI device_control(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp
                     } else {
                         status = STATUS_INSUFFICIENT_RESOURCES;
                     }
+                    recordsCleanFindActive();
                 }
             #else
                 status = STATUS_NOT_SUPPORTED;
             #endif
             break;
             
-        case IOCTLNR_IOPM_UNREGISTER:
+        case IOCTLNR_IOPM_UNREGISTER: {
             #ifdef ARCH_IS_X86
-                Ke386IoSetAccessProcess(PsGetCurrentProcess(), 0);
-                recordDelete(PsGetCurrentProcessId());
+                HANDLE hand = PsGetCurrentProcessId();
+                NT_ASSERT(hand!=0);
+                recordDelete(recordFind(hand));
+                recordsCleanFindActive();
                 
                 status = STATUS_SUCCESS;
             #else
                 status = STATUS_NOT_SUPPORTED;
             #endif
-            break;
+            }break;
         
         case IOCTL_READ_32:
             ioSize <<= 1; /* FALLTHRU */
@@ -225,7 +254,7 @@ static NTSTATUS NTAPI device_control(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp
 }
 
 static VOID NTAPI driver_unload(IN PDRIVER_OBJECT DriverObject) {
-    recordDelete(NULL);
+    for (int i=0; i < MAX_RECORDS; i++) recordDelete(&records[i]);
     
     IoDeleteSymbolicLink(&pathDosDevice);
     IoDeleteDevice(DriverObject->DeviceObject);

@@ -31,11 +31,7 @@ void iopm_fillRange(UCHAR* pIopm, USHORT first, USHORT last, BOOL isEnabled) {
             __builtin_memset(&pIopm[i>>3], (isEnabled ? 0 : ~0), todo>>3);
             i += todo;
         } else {
-            if (isEnabled) {
-                pIopm[i>>3] &= ~(1<<(i&7));
-            } else {
-                pIopm[i>>3] |= (1<<(i&7));
-            }
+            isEnabled ? ALLOWIO(pIopm, i) : BLOCKIO(pIopm, i);
             
             i++;
         }

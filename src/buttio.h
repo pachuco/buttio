@@ -34,9 +34,9 @@
     BOOL buttio_wu16(IOHandler* pIoHand, USHORT port, USHORT data);
     BOOL buttio_wu32(IOHandler* pIoHand, USHORT port, ULONG data);
 #endif
-#define GETBIT( BMAP, IND)   !!((BMAP)[(IND)>>3] &   (0x80>>((IND)&0x7)))
-#define BLOCKIO(BMAP, IND)     ((BMAP)[(IND)>>3] |=  (0x80>>((IND)&0x7)))
-#define ALLOWIO(BMAP, IND)     ((BMAP)[(IND)>>3] &= ~(0x80>>((IND)&0x7)))
+#define CHECKIO(BMAP, IND) !((BMAP)[(IND)>>3] &   (0x80>>((IND)&0x7)))
+#define BLOCKIO(BMAP, IND)  ((BMAP)[(IND)>>3] |=  (0x80>>((IND)&0x7)))
+#define ALLOWIO(BMAP, IND)  ((BMAP)[(IND)>>3] &= ~(0x80>>((IND)&0x7)))
 BOOL iopm_isIopmOpaque(UCHAR* pIopm);
 BOOL iopm_isIoDenied  (UCHAR* pIopm, USHORT port, UCHAR width);
 void iopm_fillRange   (UCHAR* pIopm, USHORT first, USHORT last, BOOL isEnabled);

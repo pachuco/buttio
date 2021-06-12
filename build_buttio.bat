@@ -9,6 +9,7 @@ set opts=-std=c99 -mconsole -Wall -Wextra -Os -s ^
   -Wl,--subsystem,native ^
   -Wl,--image-base,0x10000 ^
   -Wl,--strip-all ^
+  -Wl,--exclude-all-symbols ^
   -DCODEISDRIVER
 
 ::uncomment the other for mingw fix.

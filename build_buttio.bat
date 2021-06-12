@@ -1,20 +1,18 @@
 @echo off
-set COMPILER_PATH=
+
 call getcomp rosbe
 
 set opts=-std=c99 -mconsole -Wall -Wextra -Os -s ^
-  -nostartfiles -nodefaultlibs -nostdlib -Wl,-shared ^
-  -Wl,--enable-stdcall-fixup ^
-  -Wl,--entry,_DriverEntry ^
-  -Wl,--subsystem,native ^
-  -Wl,--image-base,0x10000 ^
-  -Wl,--strip-all ^
-  -Wl,--exclude-all-symbols ^
+  -Wl,--entry,_DriverEntry@8,-shared,--subsystem,native ^
+  -nostartfiles -nodefaultlibs -nostdlib ^
+  -mstackrealign -mpreferred-stack-boundary=3 -fno-set-stack-executable ^
+  -Wl,--enable-auto-image-base,--disable-auto-import ^
+  -Wl,--disable-stdcall-fixup,--exclude-all-symbols ^
+  -Wl,--image-base,0x10000,-section-alignment=0x1000 ^
   -DCODEISDRIVER
 
-::uncomment the other for mingw fix.
+
 set linkinc=-I=/i686-w64-mingw32/include/ddk
-::set linkinc=-I%COMPILER_PATH%/../i686-w64-mingw32/include/ddk
 
 set linkinc=%linkinc% -lntoskrnl -lhal
 set compiles=.\src\buttio_krn.c .\src\buttio_common.c

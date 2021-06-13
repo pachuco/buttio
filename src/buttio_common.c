@@ -11,13 +11,13 @@ BOOL iopm_isIopmOpaque(UCHAR* pIopm) {
 }
 
 BOOL iopm_isIoDenied(UCHAR* pIopm, USHORT port, UCHAR width) {
-    BOOL isDenied = 0;
+    BOOL isDenied = FALSE;
     
     //Mysoft says real I/O wraps
     for (UCHAR i=0; i < width; i++) {
         USHORT portOff = port+i;
         
-        isDenied |= pIopm[portOff>>3] & (1<<i);
+        isDenied |= ISDENIED(pIopm, port + i);
     }
     return isDenied;
 }

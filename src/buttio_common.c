@@ -14,10 +14,10 @@ BOOL iopm_isIoDenied(UCHAR* pIopm, USHORT port, UCHAR width) {
     BOOL isDenied = FALSE;
     
     //Mysoft says real I/O wraps
-    for (UCHAR i=0; i < width; i++) {
+    for (USHORT i=0; i < width; i++) {
         USHORT portOff = port+i;
         
-        isDenied |= ISDENIED(pIopm, port + i);
+        isDenied |= IOPM_ISDENIED(pIopm, portOff);
     }
     return isDenied;
 }
@@ -31,7 +31,7 @@ void iopm_fillRange(UCHAR* pIopm, USHORT first, USHORT last, BOOL isEnabled) {
             __builtin_memset(&pIopm[i>>3], (isEnabled ? 0 : ~0), todo>>3);
             i += todo;
         } else {
-            isEnabled ? ALLOWIO(pIopm, i) : BLOCKIO(pIopm, i);
+            isEnabled ? IOPM_ALLOWIO(pIopm, i) : IOPM_BLOCKIO(pIopm, i);
             
             i++;
         }

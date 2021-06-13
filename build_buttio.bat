@@ -2,6 +2,7 @@
 
 call getcomp rosbe
 
+::set DBG=-DDBG
 set opts=-std=c99 -mconsole -Wall -Wextra -Os -s ^
   -Wl,--entry,_DriverEntry@8,-shared,--subsystem,native ^
   -nostartfiles -nodefaultlibs -nostdlib ^
@@ -9,7 +10,7 @@ set opts=-std=c99 -mconsole -Wall -Wextra -Os -s ^
   -Wl,--enable-auto-image-base,--disable-auto-import ^
   -Wl,--disable-stdcall-fixup,--exclude-all-symbols ^
   -Wl,--image-base,0x10000,-section-alignment=0x1000 ^
-  -DCODEISDRIVER
+  -DCODEISDRIVER %DBG%
 
 
 set linkinc=-I=/i686-w64-mingw32/include/ddk

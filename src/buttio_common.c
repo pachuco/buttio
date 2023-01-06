@@ -1,7 +1,7 @@
 #include "buttio.h"
 
 /////////////////////////////////////////////////////////////////////////////
-//1 bit means blocked port, and viceversa
+// 1 bit means blocked port, and viceversa
 BOOL iopm_isIopmOpaque(UCHAR* pIopm) {
     ULONG  opacity = ~0;
     ULONG* src = (ULONG*)pIopm;
@@ -13,7 +13,7 @@ BOOL iopm_isIopmOpaque(UCHAR* pIopm) {
 BOOL iopm_isIoDenied(UCHAR* pIopm, USHORT port, UCHAR width) {
     BOOL isDenied = FALSE;
     
-    //Mysoft says real I/O wraps
+    // Mysoft says real I/O wraps
     for (USHORT i=0; i < width; i++) {
         USHORT portOff = port+i;
         

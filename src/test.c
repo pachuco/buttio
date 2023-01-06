@@ -39,8 +39,8 @@ int main() {
         IOPM_ALLOWIO(g_ioHand.iopm, 0x42);
         IOPM_ALLOWIO(g_ioHand.iopm, 0x43);
         IOPM_ALLOWIO(g_ioHand.iopm, 0x61);
-        //iopm_fillRange(g_ioHand.iopm, 0x42, 0x43, TRUE);
-        //iopm_fillRange(g_ioHand.iopm, 0x61, 0x61, TRUE);
+        // iopm_fillRange(g_ioHand.iopm, 0x42, 0x43, TRUE);
+        // iopm_fillRange(g_ioHand.iopm, 0x61, 0x61, TRUE);
         buttio_flushIOPMChanges(&g_ioHand);
         
         assert(!IOPM_ISDENIED(g_ioHand.iopm, 0x42));

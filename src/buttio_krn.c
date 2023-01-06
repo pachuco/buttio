@@ -161,8 +161,8 @@ static NTSTATUS NTAPI device_control(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp
                     if (record) {
                         __builtin_memcpy(record->iopm, (UCHAR*)data, IOPM_SIZE);
                         
-                        //I believe Ke386SetIoAccessMap() acts on current process only.
-                        //So using PsLookupProcessByProcessId() won't do much good.
+                        // I believe Ke386SetIoAccessMap() acts on current process only.
+                        // So using PsLookupProcessByProcessId() won't do much good.
                         Ke386SetIoAccessMap(1, record->iopm);
                         Ke386IoSetAccessProcess(PsGetCurrentProcess(), 1);
                         

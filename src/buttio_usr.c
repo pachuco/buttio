@@ -4,14 +4,14 @@
 #include "buttio.h"
 #include "util.h"
 
-//SERVICES_FOREACH(DEFFUN_OBJ, _, _);
-//CloseServiceHandle
-//ControlService
-//CreateService
-//DeleteService
-//OpenSCManager
-//OpenService
-//StartService
+// SERVICES_FOREACH(DEFFUN_OBJ, _, _);
+// CloseServiceHandle
+// ControlService
+// CreateService
+// DeleteService
+// OpenSCManager
+// OpenService
+// StartService
 
 static BOOL  g_isDriverRequired = FALSE;
 static BOOL  g_isInit = FALSE;
@@ -19,7 +19,7 @@ static SC_HANDLE g_manager = NULL;
 static SC_HANDLE g_service = NULL;
 static HANDLE    g_driverFile = NULL;
 
-//BOOL DeviceIoControl(HANDLE dev, DWORD ioctl, LPVOID in, DWORD inSize, LPVOID out, DWORD outSize, LPDWORD pRetSize, NULL);
+// BOOL DeviceIoControl(HANDLE dev, DWORD ioctl, LPVOID in, DWORD inSize, LPVOID out, DWORD outSize, LPDWORD pRetSize, NULL);
 
 
 BOOL buttio_ru8(IOHandler* pIoHand, USHORT port, UCHAR* pData) {
@@ -161,7 +161,7 @@ BOOL buttio_init(IOHandler* pIoHand, HANDLE modHand, UCHAR preferedIOMethod) {
     g_isDriverRequired = (verInfo.dwPlatformId >= VER_PLATFORM_WIN32_NT);
     
     if (g_isDriverRequired) {
-        //init driver
+        // init driver
         g_manager = OpenSCManager(NULL, NULL, GENERIC_ALL);
         if (g_manager) {
             CHAR driverPath[MAX_PATH];
@@ -204,7 +204,7 @@ BOOL buttio_init(IOHandler* pIoHand, HANDLE modHand, UCHAR preferedIOMethod) {
         g_isInit = TRUE;
     }
     
-    //decide io method
+    // decide io method
     if (g_isInit) {
         if (!g_isDriverRequired) {
             preferedIOMethod = BUTTIO_MET_DIRECT;

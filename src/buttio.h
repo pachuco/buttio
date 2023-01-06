@@ -3,12 +3,12 @@
 #define IOPM_SIZE       0x2000
 
 #ifdef CODEISDRIVER
-    //driver specific
+    // driver specific
     #include <ntddk.h>
     
 
 #else
-    //userland specific
+    // userland specific
     #include <windows.h>
     
     enum {
@@ -77,9 +77,9 @@ enum {
 #define IOCTL_WRITE_16              CTL_CODE(BUTTIO_DEVTYPE, IOCTLNR_WRITE_16,            METHOD_BUFFERED, FILE_ANY_ACCESS)
 #define IOCTL_WRITE_8               CTL_CODE(BUTTIO_DEVTYPE, IOCTLNR_WRITE_8,             METHOD_BUFFERED, FILE_ANY_ACCESS)
 
-//BUTTIO_VERSION history
-//v1
-// - original
-//v2:
-// - PortRange use discarded. Send whole bitmap to driver.
-// - I/O permission checks moved to user side.
+// BUTTIO_VERSION history
+// v1
+//  - original
+// v2:
+//  - PortRange use discarded. Send whole bitmap to driver.
+//  - I/O permission checks moved to user side.

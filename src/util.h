@@ -5,7 +5,7 @@
 #define DEFFUN_EXT(_HMOD, _ERR, _FNAME) extern __typeof__(_FNAME) *pf##_FNAME
 #define DYNLOAD(_HMOD, _ERR, _FNAME) _ERR = _ERR ? _ERR : !(pf##_FNAME = (void*)GetProcAddress(_HMOD, #_FNAME))
 
-//example usage
+// example usage
 /*
 #define INPOUT32_FOREACH(_ACT, _HMOD, _ERR) \
     _ACT(_HMOD, _ERR, Inp32); \

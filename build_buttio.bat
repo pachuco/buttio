@@ -45,6 +45,14 @@ del bin\*.o
 
 
 
+set opts=-std=c99 -Wall -mconsole -Wextra -Os -s
+
+set linkinc=
+set errlog=.\buttio_install_err.log
+del bin\buttioinst.exe
+gcc -o .\bin\buttioinst.exe .\src\buttio_installer.c %opts% 2> %errlog%
+call :checkerr
+
 
 
 

@@ -4,6 +4,10 @@
 #include "buttio.h"
 #include "util.h"
 
+
+// these are actually available all the way down to windows 95
+// maybe dynload them in case of win32s
+
 // SERVICES_FOREACH(DEFFUN_OBJ, _, _);
 // CloseServiceHandle
 // ControlService
@@ -142,7 +146,6 @@ void buttio_shutdown(IOHandler* pIoHand) {
     }
     if (g_service) {
         ControlService(g_service, SERVICE_CONTROL_STOP, &status);
-        DeleteService(g_service);
         CloseServiceHandle(g_service);
         g_service = NULL;
     }
@@ -164,41 +167,20 @@ BOOL buttio_init(IOHandler* pIoHand, HANDLE modHand, UCHAR preferedIOMethod) {
         // init driver
         g_manager = OpenSCManager(NULL, NULL, GENERIC_ALL);
         if (g_manager) {
-            CHAR driverPath[MAX_PATH];
-            SERVICE_STATUS status;
-            
             g_service = OpenService(g_manager, DRIVER_NAME, SERVICE_ALL_ACCESS);
-            if (g_service) {
-                ControlService(g_service, SERVICE_CONTROL_STOP, &status);
-                DeleteService(g_service);
-                CloseServiceHandle(g_service);
-                g_service = NULL;
-            }
-            
-            if (GetModuleFileNameA(modHand, driverPath, MAX_PATH-1)) {
-                driverPath[MAX_PATH-1] = '\0';
-                util_getParentPathA(driverPath);
-                strncat(driverPath, DRIVER_NAME".sys", MAX_PATH-1);
-                
-                
-                g_service = CreateService(g_manager, DRIVER_NAME, DRIVER_NAME,
-                    SERVICE_ALL_ACCESS, SERVICE_KERNEL_DRIVER, SERVICE_DEMAND_START, SERVICE_ERROR_NORMAL,
-                    driverPath, NULL, NULL, NULL, NULL, NULL);
-                
-                if (g_service && StartService(g_service, 0, NULL)) {
-                    g_driverFile = CreateFile("\\\\.\\"DRIVER_NAME, GENERIC_READ | GENERIC_WRITE, 0, NULL,
-                        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-                    
-                    if (g_driverFile) {
-                        WORD driverVer = 0;
-                        DWORD bytesWritten;
-                        
-                        DeviceIoControl(g_driverFile, IOCTL_GET_VERSION, NULL, 0, &driverVer, sizeof(WORD), &bytesWritten, NULL);
-                        
-                        if (driverVer == BUTTIO_VERSION) g_isInit = TRUE;
-                    }
-                }
-            }
+			if (g_service && StartService(g_service, 0, NULL)) {
+				g_driverFile = CreateFile("\\\\.\\"DRIVER_NAME, GENERIC_READ | GENERIC_WRITE, 0, NULL,
+					OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+				
+				if (g_driverFile) {
+					WORD driverVer = 0;
+					DWORD bytesWritten;
+					
+					DeviceIoControl(g_driverFile, IOCTL_GET_VERSION, NULL, 0, &driverVer, sizeof(WORD), &bytesWritten, NULL);
+					
+					if (driverVer == BUTTIO_VERSION) g_isInit = TRUE;
+				}
+			}
         }
     } else {
         g_isInit = TRUE;
